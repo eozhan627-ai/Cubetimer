@@ -12,14 +12,14 @@
     },
     "android": {
       "package": "com.eneskazim.oezhan.cubetimer",
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-1563396210958550~2310960109"
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "config": {
-        "googleMobileAdsAppId": "ca-app-pub-1563396210958550~2310960109"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -41,8 +41,7 @@
             "backgroundColor": "#000000"
           }
         }
-      ],
-      "react-native-google-mobile-ads"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

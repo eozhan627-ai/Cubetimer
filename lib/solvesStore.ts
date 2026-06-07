@@ -18,7 +18,11 @@ export async function addSolve(solve: Solve) {
     solves.push(solve);
     await AsyncStorage.setItem(KEY, JSON.stringify(solves));
 }
-
+export const deleteSolve = async (id: number) => {
+    const solves = await getSolves();
+    const updated = solves.filter(s => s.date !== id);
+    await AsyncStorage.setItem(KEY, JSON.stringify(updated));
+};
 export async function getSolvesByCategory(category: string): Promise<Solve[]> {
     const solves = await getSolves();
     return solves.filter(s => s.category === category);
