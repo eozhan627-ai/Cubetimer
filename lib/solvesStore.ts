@@ -1,29 +1,39 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const STORAGE_KEY = 'cube-timer-solves';
+
 export type Solve = {
-    time: number;
-    date: number;
+    time: number;     // Zeit in ms
+    date: number;     // Zeitstempel (Date.now()), dient auch als eindeutige ID
     category: string;
 };
 
-const KEY = 'solves';
-
-export async function getSolves(): Promise<Solve[]> {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
+async function readAll(): Promise<Solve[]> {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    try {
+        return JSON.parse(raw) as Solve[];
+    } catch {
+        return [];
+    }
 }
 
-export async function addSolve(solve: Solve) {
-    const solves = await getSolves();
-    solves.push(solve);
-    await AsyncStorage.setItem(KEY, JSON.stringify(solves));
+async function writeAll(solves: Solve[]): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(solves));
 }
-export const deleteSolve = async (id: number) => {
-    const solves = await getSolves();
-    const updated = solves.filter(s => s.date !== id);
-    await AsyncStorage.setItem(KEY, JSON.stringify(updated));
-};
+
+export async function addSolve(solve: Solve): Promise<void> {
+    const all = await readAll();
+    all.push(solve);
+    await writeAll(all);
+}
+
+export async function deleteSolve(date: number): Promise<void> {
+    const all = await readAll();
+    await writeAll(all.filter((s) => s.date !== date));
+}
+
 export async function getSolvesByCategory(category: string): Promise<Solve[]> {
-    const solves = await getSolves();
-    return solves.filter(s => s.category === category);
+    const all = await readAll();
+    return all.filter((s) => s.category === category);
 }

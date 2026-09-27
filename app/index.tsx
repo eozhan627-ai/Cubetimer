@@ -182,8 +182,13 @@ export default function HomeScreen() {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.headerText}>SpeedSolve</Text>
-                <Pressable onPress={() => router.push({ pathname: '/history', params: { category } })}
-                ><Text style={styles.historyIcon}>⏱</Text></Pressable>
+                <View style={styles.headerIcons}>
+                    <Pressable onPress={() => router.push('/online')}>
+                        <Text style={styles.historyIcon}>🌐</Text>
+                    </Pressable>
+                    <Pressable onPress={() => router.push({ pathname: '/history', params: { category } })}
+                    ><Text style={styles.historyIcon}>⏱</Text></Pressable>
+                </View>
             </View>
 
             <Pressable style={[styles.categoryContainer, { backgroundColor }]} onPress={() => setShowCategoryModal(true)}>
@@ -342,7 +347,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     header: { height: 70, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: theme.header, paddingLeft: 16, paddingTop: 17 },
-    historyIcon: { fontSize: 30, color: '#fff', marginRight: 30, marginTop: 4 },
+    headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    historyIcon: { fontSize: 30, color: '#fff', marginRight: 14, marginTop: 4 },
     headerText: { color: '#fff', fontSize: 24, fontWeight: '600', marginTop: 4 },
     categoryContainer: { alignItems: 'flex-end', padding: 16 },
     categoryText: { fontSize: 18 },
