@@ -1,11 +1,16 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { getSocket } from '../lib/socket';
 import { getOrCreateUserId } from '../lib/userId';
 import { theme } from '../theme/theme';
 
-type Phase = 'idle' | 'queued' | 'matched' | 'countdown' | 'running' | 'finished';
+type Phase = 'idle' | 'queued' | 'matched' | 'countdown' | 'running' | 'waitingOpponent' | 'finished';
+
+type MatchFoundPayload = { matchId: string; category: string; opponentUserId: string };
+type CountdownPayload = { matchId: string; startAt: number };
+type MatchResultPayload = { matchId: string; winnerId: string; times: Record<string, number> };
 
 const CATEGORY = '3×3'; // TODO: später von der Kategorie-Auswahl des Home-Screens übernehmen
 
@@ -20,6 +25,8 @@ export default function OnlineScreen() {
     const [elapsed, setElapsed] = useState(0);
     const [result, setResult] = useState<{ won: boolean; myTime: number; opponentTime: number } | null>(null);
     const [opponentDone, setOpponentDone] = useState(false);
+    const [amIReady, setAmIReady] = useState(false);
+    const [myFinalTime, setMyFinalTime] = useState<number | null>(null);
 
     const userIdRef = useRef<string | null>(null);
     const startAtRef = useRef<number | null>(null);
@@ -33,13 +40,13 @@ export default function OnlineScreen() {
             userIdRef.current = await getOrCreateUserId();
         })();
 
-        socket.on('match:found', ({ matchId, opponentUserId }) => {
+        socket.on('match:found', ({ matchId, opponentUserId }: MatchFoundPayload) => {
             setMatchId(matchId);
             setOpponentId(opponentUserId);
             setPhase('matched');
         });
 
-        socket.on('match:countdown', ({ startAt }) => {
+        socket.on('match:countdown', ({ startAt }: CountdownPayload) => {
             startAtRef.current = startAt;
             setPhase('countdown');
 
@@ -61,7 +68,7 @@ export default function OnlineScreen() {
 
         socket.on('match:opponent-stopped', () => setOpponentDone(true));
 
-        socket.on('match:result', ({ winnerId, times }) => {
+        socket.on('match:result', ({ winnerId, times }: MatchResultPayload) => {
             if (tickRef.current) clearInterval(tickRef.current);
             const myId = userIdRef.current!;
             const opponent = Object.keys(times).find((id) => id !== myId)!;
@@ -100,11 +107,15 @@ export default function OnlineScreen() {
     // In Phase 2 kommt hier die echte Kamera-Permission + Preview rein.
     const confirmReady = () => {
         if (!matchId) return;
+        setAmIReady(true);
         getSocket().emit('match:camera-ready', { matchId });
     };
 
     const handleStop = () => {
         if (!matchId) return;
+        if (tickRef.current) clearInterval(tickRef.current); // eigenen Timer sofort einfrieren
+        setMyFinalTime(elapsed);
+        setPhase('waitingOpponent');
         getSocket().emit('match:stop', { matchId });
     };
 
@@ -127,6 +138,8 @@ export default function OnlineScreen() {
         setOpponentId(null);
         setElapsed(0);
         setCountdown(3);
+        setAmIReady(false);
+        setMyFinalTime(null);
         setPhase('idle');
     };
 
@@ -138,43 +151,55 @@ export default function OnlineScreen() {
             {phase === 'idle' && (
                 <View style={styles.center}>
                     <Pressable style={styles.primaryButton} onPress={joinQueue}>
-                        <Text style={styles.primaryButtonText}>Gegner suchen </Text>
+                        <Text style={styles.primaryButtonText}>Gegner suchen  </Text>
                     </Pressable>
                 </View>
             )}
 
             {phase === 'queued' && (
                 <View style={styles.center}>
-                    <Text style={styles.info}>Suche Gegner…   </Text>
+                    <Text style={styles.info}>Suche Gegner…  </Text>
                     <Pressable style={styles.secondaryButton} onPress={leaveQueue}>
-                        <Text style={styles.secondaryButtonText}>Abbrechen  </Text>
+                        <Text style={styles.secondaryButtonText}>Abbrechen </Text>
                     </Pressable>
                 </View>
             )}
 
             {phase === 'matched' && (
                 <View style={styles.center}>
-                    <Text style={styles.info}>Gegner gefunden!</Text>
+                    <Text style={styles.info}>Gegner gefunden!  </Text>
                     <Text style={styles.subInfo}>
-                        Kamera-Check kommt in Phase 2 – für jetzt einfach bestätigen.    </Text>
-                    <Pressable style={styles.primaryButton} onPress={confirmReady}>
-                        <Text style={styles.primaryButtonText}>Bereit</Text>
-                    </Pressable>
+                        Kamera-Check kommt in Phase 2 – für jetzt einfach bestätigen.
+                    </Text>
+                    {amIReady ? (
+                        <Text style={styles.info}>Warte auf Gegner…  </Text>
+                    ) : (
+                        <Pressable style={styles.primaryButton} onPress={confirmReady}>
+                            <Text style={styles.primaryButtonText}>Bereit </Text>
+                        </Pressable>
+                    )}
                 </View>
             )}
 
             {phase === 'countdown' && (
                 <View style={styles.center}>
-                    <Text style={styles.countdown}>{countdown}</Text>
+                    <Text style={styles.countdown}>{countdown} </Text>
                 </View>
             )}
 
             {phase === 'running' && (
                 <Pressable style={styles.center} onPress={handleStop}>
-                    <Text style={styles.timeText}>{formatTime(elapsed)}</Text>
+                    <Text style={styles.timeText}>{formatTime(elapsed)} </Text>
                     <Text style={styles.subInfo}>Tippen zum Stoppen </Text>
-                    {opponentDone && <Text style={styles.warn}>Gegner ist bereits fertig! </Text>}
+                    {opponentDone && <Text style={styles.warn}>Gegner ist bereits fertig!  </Text>}
                 </Pressable>
+            )}
+
+            {phase === 'waitingOpponent' && myFinalTime !== null && (
+                <View style={styles.center}>
+                    <Text style={styles.timeText}>{formatTime(myFinalTime)} </Text>
+                    <Text style={styles.subInfo}>Warte auf Gegner…  </Text>
+                </View>
             )}
 
             {phase === 'finished' && result && (
@@ -182,7 +207,7 @@ export default function OnlineScreen() {
                     <Text style={result.won ? styles.won : styles.lost}>
                         {result.won ? 'Gewonnen! 🎉' : 'Verloren'}
                     </Text>
-                    <Text style={styles.info}>Du: {formatTime(result.myTime)}  </Text>
+                    <Text style={styles.info}>Du: {formatTime(result.myTime)} </Text>
                     <Text style={styles.info}>Gegner: {formatTime(result.opponentTime)}  </Text>
 
                     <View style={styles.row}>
@@ -195,6 +220,14 @@ export default function OnlineScreen() {
                     </View>
                 </View>
             )}
+
+            {/* Banner Ad einfügen, wie im Home-Screen */}
+            <View style={{ alignItems: 'center' }}>
+                <BannerAd
+                    unitId={__DEV__ ? TestIds.BANNER : 'ca-app-pub-1563396210958550/3165720661'}
+                    size={BannerAdSize.FULL_BANNER}
+                />
+            </View>
         </View>
     );
 }
